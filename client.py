@@ -42,57 +42,10 @@ producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
 
 # Dictionary to store aggregated data
 aggregated_data = {
-    '0':{
         'pE5':{'count':0,'total_price':0},
         'pE10':{'count':0,'total_price':0},
         'pDie':{'count':0,'total_price':0}
-    },
-    '1':{
-        'pE5':{'count':0,'total_price':0},
-        'pE10':{'count':0,'total_price':0},
-        'pDie':{'count':0,'total_price':0}
-    },
-    '2':{
-        'pE5':{'count':0,'total_price':0},
-        'pE10':{'count':0,'total_price':0},
-        'pDie':{'count':0,'total_price':0}
-    },
-    '3':{
-        'pE5':{'count':0,'total_price':0},
-        'pE10':{'count':0,'total_price':0},
-        'pDie':{'count':0,'total_price':0}
-    },
-    '4':{
-        'pE5':{'count':0,'total_price':0},
-        'pE10':{'count':0,'total_price':0},
-        'pDie':{'count':0,'total_price':0}
-    },
-    '5':{
-        'pE5':{'count':0,'total_price':0},
-        'pE10':{'count':0,'total_price':0},
-        'pDie':{'count':0,'total_price':0}
-    },
-    '6':{
-        'pE5':{'count':0,'total_price':0},
-        'pE10':{'count':0,'total_price':0},
-        'pDie':{'count':0,'total_price':0}
-    },
-    '7':{
-        'pE5':{'count':0,'total_price':0},
-        'pE10':{'count':0,'total_price':0},
-        'pDie':{'count':0,'total_price':0}
-    },
-    '8':{
-        'pE5':{'count':0,'total_price':0},
-        'pE10':{'count':0,'total_price':0},
-        'pDie':{'count':0,'total_price':0}
-    },
-    '9':{
-        'pE5':{'count':0,'total_price':0},
-        'pE10':{'count':0,'total_price':0},
-        'pDie':{'count':0,'total_price':0}
-    }
-}      
+    }   
     
  
 i = 0
@@ -102,7 +55,7 @@ timestamp = parser.parse("01.01.1970 00:00:00")
 # Consume messages from Kafka topic
 for message in consumer:
     i+=1
-    if i > 10:
+    if i > 10000:
         break
     
     data = json.loads(message.value)
@@ -119,15 +72,16 @@ for message in consumer:
     if not re.match('^\d{5}$',postleitzahl):
         continue
     
-    aggregated_data[postleitzahl[0]]['pE5']['count'] +=1
-    aggregated_data[postleitzahl[0]]['pE5']['total_price'] +=pE5
-    aggregated_data[postleitzahl[0]]['pE10']['count'] +=1
-    aggregated_data[postleitzahl[0]]['pE10']['total_price'] +=pE10
-    aggregated_data[postleitzahl[0]]['pDie']['count'] +=1
-    aggregated_data[postleitzahl[0]]['pDie']['total_price'] +=pDie
+    print(postleitzahl)
+    aggregated_data['pE5']['count'] +=1
+    aggregated_data['pE5']['total_price'] +=pE5
+    aggregated_data['pE10']['count'] +=1
+    aggregated_data['pE10']['total_price'] +=pE10
+    aggregated_data['pDie']['count'] +=1
+    aggregated_data['pDie']['total_price'] +=pDie
 
 
-
+#pprint.pprint(aggregated_data)
 
 # Close Kafka consumer and producer
 consumer.close()
