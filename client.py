@@ -10,6 +10,7 @@ import graphyte
 import json
 import pprint
 import re
+import threading
 
 def is_hour_passed(timestamp1: datetime, timestamp2: datetime):   
     timestamp1 = timestamp1.replace(tzinfo=timezone.utc)
@@ -81,7 +82,7 @@ def aggregateData(plz):
 
             if aggregated_data['pE10']['count'] > 0:
                 averagePe10 = aggregated_data['pE10']['total_price'] / aggregated_data['pE10']['count']
-                sendToGraphite(plz, "e10", averagePe5)
+                sendToGraphite(plz, "e10", averagePe10)
             
             if aggregated_data['pDie']['count'] > 0:
                 averageDie = aggregated_data['pDie']['total_price'] / aggregated_data['pDie']['count']
@@ -106,7 +107,7 @@ def aggregateData(plz):
             aggregated_data['pE5']['total_price'] +=pE5
         if pE10 > 0:
             aggregated_data['pE10']['count'] +=1
-            aggregated_data['pE10']['total_price'] +=pE10
+            aggregated_data['pE10']['total_price'] +=pDie
         if pDie > 0:
             aggregated_data['pDie']['count'] +=1
             aggregated_data['pDie']['total_price'] +=pDie
@@ -117,4 +118,7 @@ def aggregateData(plz):
     producer.close()
 
 if __name__ == "__main__":
-    aggregateData(0)
+    for i in range(10):
+        threading.Thread(target=aggregateData, args=(i,)).start()
+    
+    print("Main done")
