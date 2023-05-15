@@ -4,19 +4,19 @@ from kafka.errors import KafkaError
 from kafka import TopicPartition
 from kafka import KafkaAdminClient
 from kafka.admin import NewTopic
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dateutil import parser
+import graphyte
 import json
 import pprint
 import re
 
-def is_hour_passed(timestamp1, timestamp2):
-    # Convert timestamps to datetime objects
-    dt1 = datetime.fromtimestamp(timestamp1)
-    dt2 = datetime.fromtimestamp(timestamp2)
+def is_hour_passed(timestamp1: datetime, timestamp2: datetime):   
+    timestamp1 = timestamp1.replace(tzinfo=timezone.utc)
+    timestamp2 = timestamp2.replace(tzinfo=timezone.utc)
     
     # Calculate the difference between the two timestamps
-    time_diff = dt2 - dt1
+    time_diff = timestamp2 - timestamp1
     
     # Check if the time difference is greater than or equal to one hour
     if time_diff >= timedelta(hours=1):
@@ -24,65 +24,97 @@ def is_hour_passed(timestamp1, timestamp2):
     else:
         return False
 
-# Kafka topic and broker configuration
-bootstrap_servers = '10.50.15.52:9092'
-topic_name = 'tankerkoenig'
+def sendToGrafite(folderName, topicName, value):
+    graphyte.init('10.50.15.52', prefix='INF20.group_max.tankerkoenig.' + str(folderName))
+    graphyte.send(topicName, value)
 
-# Create Kafka consumer
-consumer = KafkaConsumer(bootstrap_servers=bootstrap_servers)
+def aggregateData(plz):
+    # Kafka topic and broker configuration
+    bootstrap_servers = '10.50.15.52:9092'
+    topic_name = 'tankerkoenig'
 
-# Assign consumer to specific partition(s)
-consumer.assign([TopicPartition(topic_name, 0)])
+    # Create Kafka consumer
+    consumer = KafkaConsumer(bootstrap_servers=bootstrap_servers)
 
-# Set consumer position to the beginning of the partition
-consumer.seek_to_beginning()
+    # Assign consumer to specific partition(s)
+    consumer.assign([TopicPartition(topic_name, plz)])
 
-# Create Kafka producer
-producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
+    # Set consumer position to the beginning of the partition
+    consumer.seek_to_beginning()
 
-# Dictionary to store aggregated data
-aggregated_data = {
-        'pE5':{'count':0,'total_price':0},
-        'pE10':{'count':0,'total_price':0},
-        'pDie':{'count':0,'total_price':0}
-    }   
-    
- 
-i = 0
+    # Create Kafka producer
+    producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
 
+    # Dictionary to store aggregated data
+    aggregated_data = {
+            'pE5':{'count':0,'total_price':0},
+            'pE10':{'count':0,'total_price':0},
+            'pDie':{'count':0,'total_price':0}
+        }   
 
-timestamp = parser.parse("01.01.1970 00:00:00")
-# Consume messages from Kafka topic
-for message in consumer:
-    i+=1
-    if i > 10000:
-        break
-    
-    data = json.loads(message.value)
+    timestampOld = parser.parse("01.01.1970 00:00:00")
 
-    # Extract relevant information from the message
-    postleitzahl = data['plz']
-    pE5 = data['pE5']
-    pE10 = data['pE10']
-    pDie = data['pDie']
-    timestamp =  parser.parse(data['dat'])
-    
-    if postleitzahl is None:
-        continue
-    if not re.match('^\d{5}$',postleitzahl):
-        continue
-    
-    print(postleitzahl)
-    aggregated_data['pE5']['count'] +=1
-    aggregated_data['pE5']['total_price'] +=pE5
-    aggregated_data['pE10']['count'] +=1
-    aggregated_data['pE10']['total_price'] +=pE10
-    aggregated_data['pDie']['count'] +=1
-    aggregated_data['pDie']['total_price'] +=pDie
+    # Consume messages from Kafka topic
+    for message in consumer:        
+        data = json.loads(message.value)
 
+        # Extract relevant information from the message
+        postleitzahl = data['plz']
+        pE5 = data['pE5']
+        pE10 = data['pE10']
+        pDie = data['pDie']
+        timestamp =  parser.parse(data['dat'])
+        
+        if postleitzahl is None:
+            continue
+        if not re.match('^\d{5}$',postleitzahl):
+            continue
+        
+        if is_hour_passed(timestampOld, timestamp):
+            averagePe5 = 0
+            averagePe10 = 0
+            averageDie = 0
+            
+            if aggregated_data['pE5']['count'] > 0:
+                averagePe5 = aggregated_data['pE5']['total_price'] / aggregated_data['pE5']['count']
+                sendToGrafite(plz, "e5", averagePe5)
 
-#pprint.pprint(aggregated_data)
+            if aggregated_data['pE10']['count'] > 0:
+                averagePe10 = aggregated_data['pE10']['total_price'] / aggregated_data['pE10']['count']
+                sendToGrafite(plz, "e10", averagePe5)
+            
+            if aggregated_data['pDie']['count'] > 0:
+                averageDie = aggregated_data['pDie']['total_price'] / aggregated_data['pDie']['count']
+                sendToGrafite(plz, "diesel", averageDie)
 
-# Close Kafka consumer and producer
-consumer.close()
-producer.close()
+            print('\n')
+            print(timestamp)
+            print(averagePe5)
+            print(averagePe10)
+            print(averageDie)
+            print('\n')
+            
+            timestampOld = timestamp
+            aggregated_data = {
+            'pE5':{'count':0,'total_price':0},
+            'pE10':{'count':0,'total_price':0},
+            'pDie':{'count':0,'total_price':0}
+            }
+
+        if pE5 > 0:
+            aggregated_data['pE5']['count'] +=1
+            aggregated_data['pE5']['total_price'] +=pE5
+        if pE10 > 0:
+            aggregated_data['pE10']['count'] +=1
+            aggregated_data['pE10']['total_price'] +=pE10
+        if pDie > 0:
+            aggregated_data['pDie']['count'] +=1
+            aggregated_data['pDie']['total_price'] +=pDie
+
+    # Done processing
+    # Close Kafka consumer and producer
+    consumer.close()
+    producer.close()
+
+if __name__ == "__main__":
+    aggregateData(0)
