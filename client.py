@@ -24,7 +24,7 @@ def is_hour_passed(timestamp1: datetime, timestamp2: datetime):
     else:
         return False
 
-def sendToGrafite(folderName, topicName, value):
+def sendToGraphite(folderName, topicName, value):
     graphyte.init('10.50.15.52', prefix='INF20.group_max.tankerkoenig.' + str(folderName))
     graphyte.send(topicName, value)
 
@@ -77,15 +77,15 @@ def aggregateData(plz):
             
             if aggregated_data['pE5']['count'] > 0:
                 averagePe5 = aggregated_data['pE5']['total_price'] / aggregated_data['pE5']['count']
-                sendToGrafite(plz, "e5", averagePe5)
+                sendToGraphite(plz, "e5", averagePe5)
 
             if aggregated_data['pE10']['count'] > 0:
                 averagePe10 = aggregated_data['pE10']['total_price'] / aggregated_data['pE10']['count']
-                sendToGrafite(plz, "e10", averagePe5)
+                sendToGraphite(plz, "e10", averagePe5)
             
             if aggregated_data['pDie']['count'] > 0:
                 averageDie = aggregated_data['pDie']['total_price'] / aggregated_data['pDie']['count']
-                sendToGrafite(plz, "diesel", averageDie)
+                sendToGraphite(plz, "diesel", averageDie)
 
             print('\n')
             print(timestamp)
