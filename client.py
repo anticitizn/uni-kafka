@@ -27,7 +27,7 @@ def is_hour_passed(timestamp1: datetime, timestamp2: datetime):
 
 def sendToGraphite(folderName, topicName, timestamp, value):
     graphyte.init('10.50.15.52', prefix='INF20.group_max.tankerkoenig.' + str(folderName))
-    graphyte.send(topicName, value, timestamp=timestamp)
+    graphyte.send(topicName, value, timestamp=timestamp.timestamp())
 
 def aggregateData(plz):
     # Kafka topic and broker configuration
@@ -88,12 +88,12 @@ def aggregateData(plz):
                 averageDie = aggregated_data['pDie']['total_price'] / aggregated_data['pDie']['count']
                 sendToGraphite(plz, "diesel", timestamp, averageDie)
 
-            print('\n')
-            print(timestamp)
-            print(averagePe5)
-            print(averagePe10)
-            print(averageDie)
-            print('\n')
+            #print('\n')
+            #print(timestamp)
+            #print(averagePe5)
+            #print(averagePe10)
+            #print(averageDie)
+            #print('\n')
             
             timestampOld = timestamp
             aggregated_data = {
