@@ -12,6 +12,8 @@ import pprint
 import re
 import threading
 
+old_offsets = [3150607, 3154055, 5012455, 5344569, 5120635, 4295102, 3716565, 4172315, 3223795, 3728085]
+
 def is_hour_passed(timestamp1: datetime, timestamp2: datetime):   
     timestamp1 = timestamp1.replace(tzinfo=timezone.utc)
     timestamp2 = timestamp2.replace(tzinfo=timezone.utc)
@@ -40,8 +42,8 @@ def aggregateData(plz):
     # Assign consumer to specific partition(s)
     consumer.assign([TopicPartition(topic_name, plz)])
 
-    # Set consumer position to the beginning of the partition
-    consumer.seek_to_beginning()
+    # Set consumer position to the old offset
+    consumer.seek(TopicPartition(topic_name, plz), old_offsets[plz])
 
     # Dictionary to store aggregated data
     aggregated_data = {
