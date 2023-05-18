@@ -48,75 +48,73 @@ def aggregateData(plz):
             'pE5':{'count':0,'total_price':0},
             'pE10':{'count':0,'total_price':0},
             'pDie':{'count':0,'total_price':0}
-        }   
+        }        
 
-    with(open(str(plz)+"_offset","w")) as file:
+    timestampOld = parser.parse("01.01.1970 00:00:00")
+    # Consume messages from Kafka topic
+    for message in consumer:        
+        data = json.loads(message.value)
+
+        # Extract relevant information from the message
+        postleitzahl = data['plz']
+        pE5 = data['pE5']
+        pE10 = data['pE10']
+        pDie = data['pDie']
+        timestamp =  parser.parse(data['dat'])
+        if postleitzahl is None:
+            continue
+        if not re.match('^\d{5}$',postleitzahl):
+            continue
         
-
-        timestampOld = parser.parse("01.01.1970 00:00:00")
-        # Consume messages from Kafka topic
-        for message in consumer:        
-            data = json.loads(message.value)
-
-            # Extract relevant information from the message
-            postleitzahl = data['plz']
-            pE5 = data['pE5']
-            pE10 = data['pE10']
-            pDie = data['pDie']
-            timestamp =  parser.parse(data['dat'])
-            if postleitzahl is None:
-                continue
-            if not re.match('^\d{5}$',postleitzahl):
-                continue
+        if is_hour_passed(timestampOld, timestamp):
+            averagePe5 = 0
+            averagePe10 = 0
+            averageDie = 0
             
-            if is_hour_passed(timestampOld, timestamp):
-                averagePe5 = 0
-                averagePe10 = 0
-                averageDie = 0
-                
-                if aggregated_data['pE5']['count'] > 0:
-                    averagePe5 = aggregated_data['pE5']['total_price'] / aggregated_data['pE5']['count']
-                    sendToGraphite(plz, "e5", timestamp, averagePe5)
+            if aggregated_data['pE5']['count'] > 0:
+                averagePe5 = aggregated_data['pE5']['total_price'] / aggregated_data['pE5']['count']
+                sendToGraphite(plz, "e5", timestamp, averagePe5)
 
-                if aggregated_data['pE10']['count'] > 0:
-                    averagePe10 = aggregated_data['pE10']['total_price'] / aggregated_data['pE10']['count']
-                    sendToGraphite(plz, "e10", timestamp, averagePe10)
-                
-                if aggregated_data['pDie']['count'] > 0:
-                    averageDie = aggregated_data['pDie']['total_price'] / aggregated_data['pDie']['count']
-                    sendToGraphite(plz, "diesel", timestamp, averageDie)
+            if aggregated_data['pE10']['count'] > 0:
+                averagePe10 = aggregated_data['pE10']['total_price'] / aggregated_data['pE10']['count']
+                sendToGraphite(plz, "e10", timestamp, averagePe10)
+            
+            if aggregated_data['pDie']['count'] > 0:
+                averageDie = aggregated_data['pDie']['total_price'] / aggregated_data['pDie']['count']
+                sendToGraphite(plz, "diesel", timestamp, averageDie)
 
-                print('\n')
-                print("test", file=file)
-                print(timestamp)
-                file.write(f'{message.offset}\n')
-                
-                #print(averagePe5)
-                #print(averagePe10)
-                #print(averageDie)
-                #print('\n')
-                
-                timestampOld = timestamp
-                
-                aggregated_data = {
-                'pE5':{'count':0,'total_price':0},
-                'pE10':{'count':0,'total_price':0},
-                'pDie':{'count':0,'total_price':0}
-                }
+            print('\n')
+            print(timestamp)
+            print(message.offset)
 
-            if pE5 > 0:
-                aggregated_data['pE5']['count'] +=1
-                aggregated_data['pE5']['total_price'] +=pE5
-            if pE10 > 0:
-                aggregated_data['pE10']['count'] +=1
-                aggregated_data['pE10']['total_price'] +=pDie
-            if pDie > 0:
-                aggregated_data['pDie']['count'] +=1
-                aggregated_data['pDie']['total_price'] +=pDie
+            with(open(str(plz)+"_offset","a")) as file:
+                print(timestamp, file=file)
+                print(message.offset, file=file)
+                print('\n', file=file)
+            
+            #print(averagePe5)
+            #print(averagePe10)
+            #print(averageDie)
+            #print('\n')
+            
+            timestampOld = timestamp
+            
+            aggregated_data = {
+            'pE5':{'count':0,'total_price':0},
+            'pE10':{'count':0,'total_price':0},
+            'pDie':{'count':0,'total_price':0}
+            }
 
-        
-        
-        
+        if pE5 > 0:
+            aggregated_data['pE5']['count'] +=1
+            aggregated_data['pE5']['total_price'] +=pE5
+        if pE10 > 0:
+            aggregated_data['pE10']['count'] +=1
+            aggregated_data['pE10']['total_price'] +=pDie
+        if pDie > 0:
+            aggregated_data['pDie']['count'] +=1
+            aggregated_data['pDie']['total_price'] +=pDie
+     
     # Done processing
     # Close Kafka consumer 
     consumer.close()
